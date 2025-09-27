@@ -15,7 +15,7 @@
   .card{background:var(--card);border:1px solid #222326;border-radius:14px;padding:16px}
   .row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;margin:10px 0}
   label{color:var(--sub);font-size:13px}
-  input[type="number"], input[type="text"], select{width:180px;background:#0f1012;border:1px solid #2a2b30;color:var(--ink);border-radius:10px;padding:10px}
+  input[type="number"], input[type="text"], select{width:200px;background:#0f1012;border:1px solid #2a2b30;color:var(--ink);border-radius:10px;padding:10px}
   button{padding:10px 14px;border-radius:10px;border:1px solid #2a2b30;background:#0f1012;color:var(--ink);cursor:pointer}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .muted{color:var(--sub);font-size:13px}
@@ -33,39 +33,79 @@
   .foot{color:#8e9096;font-size:12px;margin-top:10px}
   .pass{color:#b5f5cb}
   .fail{color:#ffb4b4}
+  .tipwrap{position:relative;display:inline-flex;align-items:center;gap:6px}
+  .i{display:inline-flex;justify-content:center;align-items:center;width:16px;height:16px;border:1px solid #3a3b40;border-radius:50%;font-size:11px;color:#cfd1d6;cursor:help;user-select:none}
+  .i::after{content:attr(data-tip);position:absolute;left:20px;top:50%;transform:translateY(-50%);opacity:0;visibility:hidden;background:#0f1012;border:1px solid #2a2b30;color:#e9e9ea;padding:8px 10px;border-radius:8px;min-width:220px;max-width:360px;line-height:1.2;z-index:5;transition:opacity .12s ease}
+  .i:hover::after{opacity:1;visibility:visible}
+  .row label{display:flex;align-items:center;gap:8px}
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>0DTE Credit-Spread Kelly & +EV Calculator</h1>
+    <div class="card" style="margin-bottom:16px">
+      <h2 style="margin:0 0 8px;font-size:18px">What this tool is</h2>
+      <div class="muted">A sizing and optimization helper for 0DTE credit spreads and iron condors. It combines edge (+EV), Kelly sizing, broker Buying Power, and a Max Daily Loss guardrail so you can cap downside while recycling capital intraday.</div>
+      <div class="hr"></div>
+      <div class="two">
+        <div>
+          <div class="muted"><b>You can use it to:</b>
+            <ul style="margin:6px 0 0 18px; padding:0">
+              <li>Compute +EV threshold, Kelly fraction, and $EV per unit</li>
+              <li>Constrain size by BP (Reg‑T or PM) and Max Daily Loss</li>
+              <li>Optimize profit target (t) and stop (m) across grids</li>
+              <li>Model iron condor overlap risk via ρ and recycle wins per day</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="muted"><b>Quick steps:</b>
+            <ol style="margin:6px 0 0 18px; padding:0">
+              <li>Set credit, width, and your win rate</li>
+              <li>Choose target t (% credit) and stop m (× credit)</li>
+              <li>Enter Bankroll, BP, Net Liq, and Max Daily Loss %</li>
+              <li>Select Reg‑T or plug your PM $/unit</li>
+              <li>Use the Simulator to scan t/m and pick the max EV/day</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid">
       <div class="card">
         <div class="two">
           <div>
-            <div class="row"><label>Win rate p (%)</label><input id="p" type="number" step="0.01" value="85"></div>
-            <div class="row"><label>Profit target t (% of credit)</label><input id="t" type="number" step="0.01" value="50"></div>
-            <div class="row"><label>Stop m (× credit)</label><input id="m" type="number" step="0.1" value="2.0"></div>
-            <div class="row"><label>Credit C (points)</label><input id="C" type="number" step="0.01" value="0.80"></div>
-            <div class="row"><label>Spread width W (points)</label><input id="W" type="number" step="1" value="50"></div>
+            <div class="row"><label class="tipwrap">Win rate p (%) <span class="i" data-tip="Your observed % of trades that finish as wins for this rule set. For a 10Δ 0DTE put spread, typical intraday p ≈ 80–90% depending on exit timing.">i</span></label><input id="p" type="number" step="0.01" value="85"></div>
+            <div class="row"><label class="tipwrap">Profit target t (% of credit) <span class="i" data-tip="Percent of the credit you plan to take as profit. 50 means take half the premium and exit.">i</span></label><input id="t" type="number" step="0.01" value="50"></div>
+            <div class="row"><label class="tipwrap">Stop m (× credit) <span class="i" data-tip="Multiple of the entry credit for your stop. 2.0 means buy back if price hits 2× the credit. Auto‑capped by max loss.">i</span></label><input id="m" type="number" step="0.1" value="2.0"></div>
+            <div class="row"><label class="tipwrap">Credit C (points) <span class="i" data-tip="Premium received in index points. SPX uses a $100 multiplier, so 1.50 points = $150 per unit.">i</span></label><input id="C" type="number" step="0.01" value="1.50"></div>
+            <div class="row"><label class="tipwrap">Spread width W (points) <span class="i" data-tip="Distance between short and long strikes. Max expiry loss ≈ (W − C) × multiplier.">i</span></label><input id="W" type="number" step="1" value="100"></div>
           </div>
           <div>
-            <div class="row"><label>Multiplier (SPX=100)</label><input id="mult" type="number" step="1" value="100"></div>
-            <div class="row"><label>Bankroll ($)</label><input id="bank" type="number" step="1000" value="1000000"></div>
-            <div class="row"><label>Buying Power ($)</label><input id="bp" type="number" step="1000" value="500000"></div>
-            <div class="row"><label>Margin mode</label>
+            <div class="row"><label class="tipwrap">Multiplier (SPX=100) <span class="i" data-tip="Contract dollar multiplier. SPX options use 100; MES/ES or ETFs differ.">i</span></label><input id="mult" type="number" step="1" value="100"></div>
+            <div class="row"><label class="tipwrap">Fees $/contract (open) <span class="i" data-tip="Commission + exchange per contract when you open. Defaults are placeholders; plug your broker’s real cost.">i</span></label><input id="feeOpen" type="number" step="0.01" value="0.65"></div>
+            <div class="row"><label class="tipwrap">Fees $/contract (close) <span class="i" data-tip="Commission + exchange per contract when you close. Applied per leg; spreads = 2 legs, IC = 4.">i</span></label><input id="feeClose" type="number" step="0.01" value="0.65"></div>
+            <div class="row"><label class="tipwrap">Slippage % (open) <span class="i" data-tip="Percent worse than mid when selling to open. Reduces collected credit. Default 1%.">i</span></label><input id="slipOpen" type="number" step="0.1" value="1.0"></div>
+            <div class="row"><label class="tipwrap">Slippage % (close) <span class="i" data-tip="Percent worse than mid when buying to close. Increases debit by % of close price. Default 2%.">i</span></label><input id="slipClose" type="number" step="0.1" value="2.0"></div>
+            <div class="row"><label class="tipwrap">Bankroll ($) <span class="i" data-tip="Capital you allocate to this strategy for Kelly sizing. Can be less than your total account.">i</span></label><input id="bank" type="number" step="1000" value="1000000"></div>
+            <div class="row"><label class="tipwrap">Buying Power ($) <span class="i" data-tip="Broker‑reported available margin you can deploy right now. Caps position size in addition to Kelly/MDL.">i</span></label><input id="bp" type="number" step="1000" value="500000"></div>
+            <div class="row"><label class="tipwrap">Net Liq ($) <span class="i" data-tip="Total account liquidation value used with the max daily loss cap.">i</span></label><input id="netliq" type="number" step="1000" value="1400000"></div>
+            <div class="row"><label class="tipwrap">Max Daily Loss (% Net Liq) <span class="i" data-tip="Daily drawdown guardrail. We cap units so worst‑case realized loss doesn’t exceed this % of Net Liq.">i</span></label><input id="mdlPct" type="number" step="0.1" value="1.0"></div>
+            <div class="row"><label class="tipwrap">Margin mode <span class="i" data-tip="Reg‑T uses max loss per unit. Custom PM lets you input your broker’s live portfolio‑margin haircut per unit.">i</span></label>
               <select id="marginMode">
-                <option value="regt">Reg‑T (max loss)</option>
+                <option value="regt" selected>Reg‑T (max loss)</option>
                 <option value="pm">Custom PM</option>
               </select>
             </div>
-            <div class="row"><label>PM margin/Put spread ($)</label><input id="pm_put" type="number" step="10" value="2500"></div>
-            <div class="row"><label>PM margin/Call spread ($)</label><input id="pm_call" type="number" step="10" value="2500"></div>
-            <div class="row"><label>PM margin/IC unit ($)</label><input id="pm_ic" type="number" step="10" value="2500"></div>
-            <div class="row"><label>Kelly fraction cap</label><input id="kcap" type="number" step="0.05" value="0.25"></div>
+            <div class="row"><label class="tipwrap">PM margin/Put spread ($) <span class="i" data-tip="If on Portfolio Margin, enter the broker’s shown initial requirement for one short put spread at entry.">i</span></label><input id="pm_put" type="number" step="10" value="2500"></div>
+            <div class="row"><label class="tipwrap">PM margin/Call spread ($) <span class="i" data-tip="Analogous to put side but for call spread. Use the platform’s live value if available.">i</span></label><input id="pm_call" type="number" step="10" value="2500"></div>
+            <div class="row"><label class="tipwrap">PM margin/IC unit ($) <span class="i" data-tip="Portfolio‑margin haircut for one iron condor (typically the tighter side, not sum). Override with what your broker displays.">i</span></label><input id="pm_ic" type="number" step="10" value="2500"></div>
+            <div class="row"><label class="tipwrap">Kelly fraction cap <span class="i" data-tip="Optional throttle. We size at min(Kelly, cap, BP, MDL). 0.25 means quarter‑Kelly cap.">i</span></label><input id="kcap" type="number" step="0.05" value="0.25"></div>
           </div>
         </div>
         <div class="hr"></div>
-        <div class="muted">Notes: C is credit in index points (e.g., 0.80). t is % of credit (50 = take half). m is stop × credit (2.0 = 2× credit). If W and C imply a max loss smaller than your stop, m is capped at (W − C)/C. “Custom PM” lets you plug your broker’s live portfolio‑margin haircut per unit; Reg‑T uses max loss.</div>
+        <div class="muted">Notes: C is credit in index points (e.g., 0.80). t is % of credit (50 = take half). m is stop × credit (2.0 = 2× credit). If W and C imply a max loss smaller than your stop, m is capped at (W − C)/C. “Custom PM” lets you plug your broker’s live portfolio‑margin haircut per unit; Reg‑T uses max loss. Max Daily Loss caps unit count so worst‑case realized losses do not exceed the % of Net Liq for the day.</div>
       </div>
 
       <div class="card">
@@ -80,36 +120,37 @@
 
     <div class="card" style="margin-top:16px">
       <div class="out" id="table"></div>
-      <div class="foot">Formulas: +EV threshold p* = m/(m+t). Kelly f* = p − (m/t)(1−p). EV (credits) = p·t − (1−p)·m. Dollar EV = EV·C·multiplier. Risk/Spread @ stop = min(m, (W−C)/C)·C·multiplier. Max expiry loss = (W − C)·multiplier.</div>
+      <div class="foot">Formulas: +EV threshold p* = m/(m+t). Kelly f* = p − (m/t)(1−p). EV (credits) = p·t − (1−p)·m. Dollar EV = EV·C·multiplier. Round‑trip fees = legs × (feeOpen + feeClose) [legs: spread=2, IC=4]. Expected slippage/trade = C·mult·[sO + sC·(p·(1−t) + (1−p)·m)], where sO=slipOpen%, sC=slipClose%. Net EV$ = Dollar EV − fees − expected slippage. Risk/Spread @ stop = min(m, (W−C)/C)·C·multiplier. Max expiry loss = (W − C)·multiplier. Max Daily Loss cap N ≤ (MDL$ / worst_losses_per_unit).</div>
     </div>
   </div>
 
-  <div class="card" style="margin:16px auto; max-width:1200px">
+  <div class="wrap">
+  <div class="card">
     <h2 style="margin:0 0 8px;font-size:18px">Simulator & Optimizer</h2>
     <div class="two">
       <div>
-        <div class="row"><label>Structure</label>
+        <div class="row"><label class="tipwrap">Structure <span class="i" data-tip="Choose single‑sided put/call spread or an iron condor. IC win‑rate accounts for overlap via ρ.">i</span></label>
           <select id="structure">
             <option value="put">Put credit spread</option>
             <option value="call">Call credit spread</option>
             <option value="ic">Iron condor</option>
           </select>
         </div>
-        <div class="row"><label>p_put (%)</label><input id="p_put" type="number" step="0.01" value="85"></div>
-        <div class="row"><label>p_call (%)</label><input id="p_call" type="number" step="0.01" value="85"></div>
-        <div class="row"><label>ρ path multiplier (A∩B)</label><input id="rho" type="number" step="0.1" value="1.5"></div>
-        <div class="row"><label>C_put (pts)</label><input id="C_put" type="number" step="0.01" value="0.80"></div>
-        <div class="row"><label>C_call (pts)</label><input id="C_call" type="number" step="0.01" value="0.80"></div>
-        <div class="row"><label>W_put (pts)</label><input id="W_put" type="number" step="1" value="50"></div>
-        <div class="row"><label>W_call (pts)</label><input id="W_call" type="number" step="1" value="50"></div>
+        <div class="row"><label class="tipwrap">p_put (%) <span class="i" data-tip="Win rate of your put spread when traded standalone intraday.">i</span></label><input id="p_put" type="number" step="0.01" value="85"></div>
+        <div class="row"><label class="tipwrap">p_call (%) <span class="i" data-tip="Win rate of your call spread when traded standalone intraday.">i</span></label><input id="p_call" type="number" step="0.01" value="85"></div>
+        <div class="row"><label class="tipwrap">ρ path multiplier (A∩B) <span class="i" data-tip="Inflates chance both sides lose on the same day vs independence. 1.0 = independent; 1.5 is conservative.">i</span></label><input id="rho" type="number" step="0.1" value="1.5"></div>
+        <div class="row"><label class="tipwrap">C_put (pts) <span class="i" data-tip="Credit for the put spread side in points.">i</span></label><input id="C_put" type="number" step="0.01" value="1.50"></div>
+        <div class="row"><label class="tipwrap">C_call (pts) <span class="i" data-tip="Credit for the call spread side in points.">i</span></label><input id="C_call" type="number" step="0.01" value="1.50"></div>
+        <div class="row"><label class="tipwrap">W_put (pts) <span class="i" data-tip="Width of the put spread. Used to cap m by max loss.">i</span></label><input id="W_put" type="number" step="1" value="100"></div>
+        <div class="row"><label class="tipwrap">W_call (pts) <span class="i" data-tip="Width of the call spread. Used to cap m by max loss.">i</span></label><input id="W_call" type="number" step="1" value="100"></div>
       </div>
       <div>
-        <div class="row"><label>Max cycles per day (wins recycle)</label><input id="K" type="number" step="1" value="3"></div>
-        <div class="row"><label>Reuse on loss?</label>
+        <div class="row"><label class="tipwrap">Max cycles per day (wins recycle) <span class="i" data-tip="How many times you can re‑enter after a take‑profit on the same day.">i</span></label><input id="K" type="number" step="1" value="3"></div>
+        <div class="row"><label class="tipwrap">Reuse on loss? <span class="i" data-tip="If yes, you’ll re‑enter even after a stop; MDL then assumes up to K loss cycles.">i</span></label>
           <select id="reuseLoss"><option value="no">No (stop day)</option><option value="yes">Yes (always re-enter)</option></select>
         </div>
-        <div class="row"><label>t grid (% of credit)</label><input id="tgrid" type="text" value="25,30,40,50,60"></div>
-        <div class="row"><label>m grid (× credit)</label><input id="mgrid" type="text" value="1.2,1.5,2.0,2.5,3.0"></div>
+        <div class="row"><label>t grid (% of credit)</label><input id="tgrid" type="text" value="20,25,30,35,40,45,50,55,60,70"></div>
+        <div class="row"><label>m grid (× credit)</label><input id="mgrid" type="text" value="1.2,1.5,1.8,2.0,2.2,2.5,3.0,3.5"></div>
         <div class="row"><label></label><button id="run">Run Simulation</button></div>
       </div>
     </div>
@@ -118,10 +159,11 @@
     <div class="out" id="simTable"></div>
   </div>
 
-  <div class="card" style="margin:16px auto; max-width:1200px">
+  <div class="card" style="margin-top:16px">
     <h2 style="margin:0 0 8px;font-size:18px">Diagnostics</h2>
     <div id="tests"></div>
   </div>
+</div>
 
 <script>
 (function(){
@@ -142,9 +184,8 @@
     return 1 - unionFail;
   }
   function expectedDayEV(p, winAmt, lossAmt, K, reuseOnLoss){
-    const q = 1 - p;
     if (reuseOnLoss){
-      return K*(p*winAmt - q*lossAmt);
+      return K*(p*winAmt - (1 - p)*lossAmt);
     }
     let ev = 0;
     for (let j=0;j<K;j++){
@@ -154,8 +195,15 @@
     }
     return ev;
   }
+  function expectedCycles(p, K, reuseOnLoss){
+    if (reuseOnLoss) return K;
+    let e=0;
+    for(let j=0;j<K-1;j++){ e += (j+1) * Math.pow(p,j) * (1-p); }
+    e += K * Math.pow(p,K); // all wins
+    return e;
+  }
 
-  // Calculator (single-side analytics + BP-aware size)
+  // Calculator (single-side analytics + BP & MDL-aware size)
   function calc(){
     const pPct = parseFloat(document.getElementById('p').value||0);
     const tPct = parseFloat(document.getElementById('t').value||0);
@@ -165,9 +213,16 @@
     const mult = parseFloat(document.getElementById('mult').value||100);
     const bank = parseFloat(document.getElementById('bank').value||0);
     const kcap = parseFloat(document.getElementById('kcap').value||1);
+    const feeOpen = parseFloat(document.getElementById('feeOpen').value||0);
+    const feeClose = parseFloat(document.getElementById('feeClose').value||0);
+    const slipOpen = parseFloat(document.getElementById('slipOpen').value||0);
+    const slipClose = parseFloat(document.getElementById('slipClose').value||0);
+    const sO = slipOpen/100, sC = slipClose/100;
     const mode = document.getElementById('marginMode').value;
     const pm_ic = parseFloat(document.getElementById('pm_ic').value||0);
     const bpStart = parseFloat(document.getElementById('bp').value||0);
+    const netliq = parseFloat(document.getElementById('netliq').value||0);
+    const mdlPct = parseFloat(document.getElementById('mdlPct').value||0)/100;
 
     const p = pPct/100.0;
     const t = tPct/100.0;
@@ -181,6 +236,13 @@
     const EVcredits = p*t - (1 - p)*mCap;
     const EVdollars = EVcredits * C * mult;
 
+    // Fees per spread (2 legs)
+    const legs = 2;
+    const feeRT = legs * (feeOpen + feeClose);
+    const EVdollarsNet = EVdollars - feeRT;
+    const expSlip = C * mult * ( sO + sC * ( p*(1 - t) + (1 - p)*mCap ) );
+    const EVdollarsNetAll = EVdollarsNet - expSlip;
+
     const kelly = t>0 ? (p - (mCap/t)*(1 - p)) : 0;
     const kAdj = Math.max(0, Math.min(kelly, 1));
 
@@ -190,21 +252,25 @@
     // BP sizing: use PM field for generic unit, else Reg-T (max loss)
     const marginPerUnit = (mode === 'pm') ? (pm_ic || maxLossExpiry) : maxLossExpiry;
 
+    // Daily loss cap (MDL): assume 1 loss max here
+    const mdl$ = netliq * mdlPct;
+    const nMDL = (riskPerSpreadStop>0) ? Math.floor(mdl$ / riskPerSpreadStop) : 0;
+
     function sizeForFraction(frac){
       if (!isFinite(riskPerSpreadStop) || riskPerSpreadStop <= 0) return 0;
       return Math.floor((bank * frac) / riskPerSpreadStop);
     }
     const nKelly = sizeForFraction(kAdj);
     const nBP = marginPerUnit>0 ? Math.floor(bpStart / marginPerUnit) : 0;
-    const nFull = Math.min(nKelly, nBP);
-    const nHalf = sizeForFraction(Math.min(kAdj, kcap) * 0.5);
-    const nQtr  = sizeForFraction(Math.min(kAdj, kcap) * 0.25);
+    const nFull = Math.max(0, Math.min(nKelly, nBP, nMDL));
+    const nHalf = Math.floor(nFull/2);
+    const nQtr  = Math.floor(nFull/4);
 
     // Messages
     const capMsg = document.getElementById('capMsg');
     capMsg.innerHTML = capHit
       ? `<div class="warn">Stop multiple capped by expiry max loss. Using m = <b>${fmt(mCap,3)}×</b> instead of ${fmt(mIn,3)}×. (Max expiry loss ${(isFinite(maxLossExpiry)?'$'+fmt(maxLossExpiry,0):'n/a')})</div>`
-      : `<div class="ok">Using stop m = <b>${fmt(mCap,3)}×</b>. Risk per spread at stop ≈ <b>$${fmt(riskPerSpreadStop,0)}</b>.</div>`;
+      : `<div class="ok">Using stop m = <b>${fmt(mCap,3)}×</b>. Risk per spread at stop ≈ <b>$${fmt(riskPerSpreadStop,0)}</b>. Max daily loss cap: <b>$${fmt(mdl$,0)}</b> → unit limit by MDL: <b>${nMDL}</b></div>`;
 
     // Metrics block
     const metrics = document.getElementById('metrics');
@@ -213,7 +279,9 @@
       <div class="row"><label>+EV threshold p*</label><div class="kpill ${plusEV?'good':'bad'}">${fmt(100*pThresh,2)}%</div></div>
       <div class="row"><label>Your p</label><div class="kpill ${plusEV?'good':'bad'}">${fmt(100*p,2)}%</div></div>
       <div class="row"><label>EV (credits)</label><div class="kpill ${EVcredits>=0?'good':'bad'}">${fmt(EVcredits,4)}</div></div>
-      <div class="row"><label>EV ($/spread)</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars,2)}</div></div>
+      <div class="row"><label>EV ($/spread, net of fees+slip)</label><div class="kpill ${EVdollarsNetAll>=0?'good':'bad'}">$${fmt(EVdollarsNetAll,2)}</div></div>
+      <div class="row"><label>Fees/RT (per spread)</label><div class="kpill">$${fmt(feeRT,2)}</div></div>
+      <div class="row"><label>Exp slippage/trade</label><div class="kpill">$${fmt(expSlip,2)}</div></div>
       <div class="row"><label>Kelly f*</label><div class="kpill ${kAdj>0?'good':'bad'}">${fmt(kelly,3)}</div></div>
       <div class="row"><label>Kelly (capped)</label><div class="kpill">${fmt(Math.min(kAdj, kcap),3)}</div></div>
       <div class="row"><label>Max loss @ expiry</label><div class="kpill">${isFinite(maxLossExpiry)?('$'+fmt(maxLossExpiry,0)):'n/a'}</div></div>
@@ -222,21 +290,24 @@
     // Size suggestions
     const sizes = document.getElementById('sizes');
     const capKelly = Math.min(kAdj, kcap);
-    const nCap = sizeForFraction(capKelly);
+    const nCap = Math.max(0, Math.min(Math.floor((bank * capKelly)/riskPerSpreadStop), nBP, nMDL));
     sizes.innerHTML = `
       <div class="two">
         <div>
-          <div class="row"><label>Full Kelly size (BP‑aware)</label><div class="kpill accent">${nFull} spreads</div></div>
+          <div class="row"><label>Full Kelly size (BP∧MDL‑aware)</label><div class="kpill accent">${nFull} spreads</div></div>
           <div class="row"><label>BP‑only limit</label><div class="kpill">${nBP} spreads</div></div>
+          <div class="row"><label>MDL‑only limit</label><div class="kpill">${nMDL} spreads</div></div>
           <div class="row"><label>${fmt(capKelly*100,1)}% Kelly (cap)</label><div class="kpill accent">${nCap} spreads</div></div>
           <div class="row"><label>Half of cap</label><div class="kpill">${nHalf} spreads</div></div>
           <div class="row"><label>Quarter of cap</label><div class="kpill">${nQtr} spreads</div></div>
         </div>
         <div>
           <div class="row"><label>Risk/Spread @ stop</label><div class="kpill">$${fmt(riskPerSpreadStop,0)}</div></div>
-          <div class="row"><label>Dollar EV @ cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nCap,0)}</div></div>
-          <div class="row"><label>Dollar EV @ 1/2 cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nHalf,0)}</div></div>
-          <div class="row"><label>Dollar EV @ 1/4 cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nQtr,0)}</div></div>
+          <div class="row"><label>Dollar EV @ cap (net)</label><div class="kpill ${EVdollarsNetAll>=0?'good':'bad'}">$${fmt(EVdollarsNetAll * nCap,0)}</div></div>
+          <div class="row"><label>Dollar EV @ 1/2 cap (net)</label><div class="kpill ${EVdollarsNetAll>=0?'good':'bad'}">$${fmt(EVdollarsNetAll * Math.floor(nCap/2),0)}</div></div>
+          <div class="row"><label>Dollar EV @ 1/4 cap (net)</label><div class="kpill ${EVdollarsNetAll>=0?'good':'bad'}">$${fmt(EVdollarsNetAll * Math.floor(nCap/4),0)}</div></div>
+          <div class="row"><label>Fees @ cap (per cycle)</label><div class="kpill">$${fmt(feeRT * nCap,0)}</div></div>
+          <div class="row"><label>Slippage @ cap (exp/cycle)</label><div class="kpill">$${fmt(expSlip * nCap,0)}</div></div>
         </div>
       </div>
     `;
@@ -246,7 +317,12 @@
     let rows = '';
     for (let pView = Math.max(0.5, p - 0.1); pView <= Math.min(0.98, p + 0.1) + 1e-9; pView += 0.02){
       const EVc = pView*t - (1 - pView)*mCap;
-      const EV$ = EVc * C * mult;
+      const EV$gross = EVc * C * mult;
+      const feeRT = 2 * (parseFloat(document.getElementById('feeOpen').value||0) + parseFloat(document.getElementById('feeClose').value||0));
+      const sO = (parseFloat(document.getElementById('slipOpen').value||0))/100;
+      const sC = (parseFloat(document.getElementById('slipClose').value||0))/100;
+      const expSlip = C * mult * ( sO + sC * ( pView*(1 - t) + (1 - pView)*mCap ) );
+      const EV$ = EV$gross - feeRT - expSlip;
       const f   = t>0 ? (pView - (mCap/t)*(1 - pView)) : 0;
       rows += `<tr><td>${fmt(100*pView,2)}%</td><td class="${EVc>=0?'good':'bad'}">${fmt(EVc,4)}</td><td class="${EV$>=0?'good':'bad'}">$${fmt(EV$,2)}</td><td>${fmt(f,3)}</td><td>${fmt(mCap/(mCap+t)*100,2)}%</td></tr>`;
     }
@@ -257,7 +333,7 @@
       </table>`;
   }
 
-  // Simulator & optimizer (BP‑aware)
+  // Simulator & optimizer (BP & MDL‑aware)
   function runSim(){
     const mult = parseFloat(document.getElementById('mult').value||100);
     const bank = parseFloat(document.getElementById('bank').value||0);
@@ -267,6 +343,12 @@
     const pm_call = parseFloat(document.getElementById('pm_call').value||0);
     const pm_ic = parseFloat(document.getElementById('pm_ic').value||0);
     const bpStart = parseFloat(document.getElementById('bp').value||0);
+    const netliq = parseFloat(document.getElementById('netliq').value||0);
+    const mdlPct = parseFloat(document.getElementById('mdlPct').value||0)/100;
+    const feeOpen = parseFloat(document.getElementById('feeOpen').value||0);
+    const feeClose = parseFloat(document.getElementById('feeClose').value||0);
+    const sO = parseFloat(document.getElementById('slipOpen').value||0)/100;
+    const sC = parseFloat(document.getElementById('slipClose').value||0)/100;
 
     const structure = document.getElementById('structure').value;
     const p_put = (parseFloat(document.getElementById('p_put').value||0))/100;
@@ -282,23 +364,25 @@
     const tList = (document.getElementById('tgrid').value||'').split(',').map(s=>parseFloat(s.trim())).filter(x=>isFinite(x) && x>0).map(x=>x/100);
     const mList = (document.getElementById('mgrid').value||'').split(',').map(s=>parseFloat(s.trim())).filter(x=>isFinite(x) && x>0);
 
-    let p, Ctot, Closs, W_eff, marginPerUnit;
+    let p, Ctot, Closs, W_eff, marginPerUnit, legs;
     if (structure === 'put'){
-      p = p_put; Ctot = C_put; Closs = C_put; W_eff = W_put;
+      p = p_put; Ctot = C_put; Closs = C_put; W_eff = W_put; legs = 2;
       const regt = (W_put - C_put) * mult;
       marginPerUnit = (mode==='pm' ? (pm_put||regt) : regt);
     } else if (structure === 'call'){
-      p = p_call; Ctot = C_call; Closs = C_call; W_eff = W_call;
+      p = p_call; Ctot = C_call; Closs = C_call; W_eff = W_call; legs = 2;
       const regt = (W_call - C_call) * mult;
       marginPerUnit = (mode==='pm' ? (pm_call||regt) : regt);
     } else { // IC
       p = probIC(p_put, p_call, rho);
       Ctot = C_put + C_call;
       Closs = 0.5 * Ctot; // assume one side eats the stop
-      W_eff = Math.min(W_put, W_call);
+      W_eff = Math.min(W_put, W_call); legs = 4;
       const regtIC = Math.min(W_put - C_put, W_call - C_call) * mult; // tighter side
       marginPerUnit = (mode==='pm' ? (pm_ic||regtIC) : regtIC);
     }
+
+    const mdl$ = netliq * mdlPct;
 
     let best = {ev:-Infinity, t:null, m:null, p, perTradeEV:null, perDayEV:null, nCap:0};
     let rows = '';
@@ -308,15 +392,19 @@
         const mP = capM(mIn, Closs, W_eff);
         const winAmt = t * Ctot * mult;
         const lossAmt = mP * Closs * mult;
-        const perTradeEV = p*winAmt - (1-p)*lossAmt;
-        const perDayEV = expectedDayEV(p, winAmt, lossAmt, K, reuseLoss);
+        const feeRT = (legs||2) * (feeOpen + feeClose);
+        const expSlip = Ctot * mult * ( sO + sC * ( p*(1 - t) + (1 - p)*mP ) );
+        const perTradeEV = p*winAmt - (1-p)*lossAmt - feeRT - expSlip;
+        const perDayEV = expectedDayEV(p, winAmt, lossAmt, K, reuseLoss) - expectedCycles(p, K, reuseLoss)*(feeRT + expSlip);
 
-        const riskPer = lossAmt; // per-unit risk at stop
+        const riskPer = lossAmt; // per-unit realized loss at stop
         const kelly = (t>0) ? (p - (mP/t)*(1-p)) : 0;
         const kAdj = Math.max(0, Math.min(kelly, kcap));
         const nKelly = riskPer>0 ? Math.floor((bank * kAdj)/riskPer) : 0;
         const nBP = marginPerUnit>0 ? Math.floor(bpStart / marginPerUnit) : 0;
-        const nCap = Math.min(nKelly, nBP);
+        const worstLossCycles = reuseLoss ? K : 1;
+        const nMDL = riskPer>0 ? Math.floor(mdl$ / (riskPer * worstLossCycles)) : 0;
+        const nCap = Math.max(0, Math.min(nKelly, nBP, nMDL));
 
         rows += `<tr><td>${(structure).toUpperCase()}</td><td>${(t*100).toFixed(0)}%</td><td>${mIn.toFixed(2)}×</td><td>${(p*100).toFixed(2)}%</td><td>$${fmt(winAmt,0)}</td><td>$${fmt(lossAmt,0)}</td><td class="${perTradeEV>=0?'good':'bad'}">$${fmt(perTradeEV,0)}</td><td class="${perDayEV>=0?'good':'bad'}">$${fmt(perDayEV,0)}</td><td>${fmt(kAdj,3)}</td><td>${nCap}</td></tr>`;
 
@@ -333,7 +421,9 @@
         <div>
           <div class="row"><label>EV/trade @ best</label><div class="kpill ${best.perTradeEV>=0?'good':'bad'}">$${fmt(best.perTradeEV,0)}</div></div>
           <div class="row"><label>EV/day @ best</label><div class="kpill ${best.perDayEV>=0?'good':'bad'}">$${fmt(best.perDayEV,0)}</div></div>
-          <div class="row"><label>Size @ Kelly∧BP cap</label><div class="kpill">${best.nCap} units</div></div>
+          <div class="row"><label>Fees/RT (per unit)</label><div class="kpill">$${fmt(((structure==='ic'?4:2)*(feeOpen+feeClose)),2)}</div></div>
+          <div class="row"><label>Exp slippage/RT (per unit)</label><div class="kpill">$${fmt(((structure==='ic'? (C_put+C_call) : (structure==='put'?C_put:C_call)) * mult * ( sO + sC * ( p*(1 - best.t) + (1 - p)*best.m ))),2)}</div></div>
+          <div class="row"><label>Size @ Kelly∧BP∧MDL cap</label><div class="kpill">${best.nCap} units</div></div>
         </div>
       </div>`;
 
@@ -369,15 +459,34 @@
     (function(){
       const out = probIC(0.9,0.9,1); results.push({name:'probIC 0.9/0.9 rho=1', pass:near(out,0.81)});})();
 
+    // Test 6: MDL cap sizing (netliq=1,000,000; mdl=1%; riskPer=200) => floor(10,000/200)=50
+    (function(){
+      const netliq=1000000, mdlPct=0.01, riskPer=200; const mdl$=netliq*mdlPct; const n=Math.floor(mdl$/riskPer); results.push({name:'MDL cap basic', pass:(n===50)});})();
+
+    // Test 7: Fee deduction – legs=2, open=1, close=1, EV$gross=10 => EV$net=6
+    (function(){ const legs=2, fo=1, fc=1, EVg=10; const EVn=EVg - legs*(fo+fc); results.push({name:'Fees net from EV$', pass:Math.abs(EVn-6)<1e-9});})();
+
+    // Test 8: IC fees – legs=4, open=0.65, close=0.65, EV$gross=10 => EV$net=4.8
+    (function(){ const legs=4, fo=0.65, fc=0.65, EVg=10; const EVn=EVg - legs*(fo+fc); results.push({name:'IC fees net math', pass:Math.abs(EVn-4.8)<1e-9});})();
+
+    // Test 9: Expected slippage formula sanity
+    (function(){ const C=1, mult=100, p=0.5, t=0.5, m=2.0, sO=0.01, sC=0.02; const slip = C*mult*( sO + sC*( p*(1-t) + (1-p)*m ) ); results.push({name:'Slippage expected value', pass:Math.abs(slip-3.5)<1e-9});})();
+
+    // Test 10: Zero slippage => zero cost
+    (function(){ const C=1, mult=100, p=0.8, t=0.5, m=2.0, sO=0, sC=0; const slip = C*mult*( sO + sC*( p*(1-t) + (1-p)*m ) ); results.push({name:'Slippage zero', pass:Math.abs(slip-0)<1e-12});})();
+
+    // Test 11: Zero fees & slippage keeps EV gross
+    (function(){ const EVc=0.1, C=1, mult=100, legs=2, fo=0, fc=0, sO=0, sC=0, p=.8, t=.5, m=2; const EVg=EVc*C*mult; const fees=legs*(fo+fc); const slip=C*mult*( sO + sC*( p*(1-t) + (1-p)*m ) ); const net=EVg-fees-slip; results.push({name:'Zero fees/slip => EVnet=EVgross', pass:near(net,EVg)});})();
+
     const el = document.getElementById('tests');
     el.innerHTML = '<ul>' + results.map(r=>`<li class="${r.pass?'pass':'fail'}">${r.pass?'PASS':'FAIL'} – ${r.name}</li>`).join('') + '</ul>';
   }
 
   // Wire events
-  ['p','t','m','C','W','mult','bank','kcap','marginMode','pm_put','pm_call','pm_ic','bp'].forEach(id=>{
+  ['p','t','m','C','W','mult','bank','kcap','marginMode','pm_put','pm_call','pm_ic','bp','netliq','mdlPct','feeOpen','feeClose','slipOpen','slipClose'].forEach(id=>{
     document.getElementById(id).addEventListener('input', calc);
   });
-  ['run','structure','p_put','p_call','rho','C_put','C_call','W_put','W_call','K','reuseLoss','tgrid','mgrid'].forEach(id=>{
+  ['run','structure','p_put','p_call','rho','C_put','C_call','W_put','W_call','K','reuseLoss','tgrid','mgrid','netliq','mdlPct','feeOpen','feeClose','slipOpen','slipClose'].forEach(id=>{
     const el = document.getElementById(id);
     if (id==='run') el.addEventListener('click', runSim);
     el.addEventListener('change', runSim);
