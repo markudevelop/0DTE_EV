@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>0DTE Credit-Spread Kelly & +EV Calculator</title>
+<style>
+  :root { --bg:#0b0b0c; --card:#141416; --ink:#e9e9ea; --sub:#a5a7ac; --accent:#60a5fa; --bad:#f87171; --good:#4ade80; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial}
+  .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+  h1{font-size:22px;margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid #222326;border-radius:14px;padding:16px}
+  .row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;margin:10px 0}
+  label{color:var(--sub);font-size:13px}
+  input[type="number"], input[type="text"], select{width:180px;background:#0f1012;border:1px solid #2a2b30;color:var(--ink);border-radius:10px;padding:10px}
+  button{padding:10px 14px;border-radius:10px;border:1px solid #2a2b30;background:#0f1012;color:var(--ink);cursor:pointer}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .muted{color:var(--sub);font-size:13px}
+  .out{font-variant-numeric:tabular-nums}
+  .kpill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #2a2b30;margin-right:6px}
+  .good{color:var(--good)}
+  .bad{color:var(--bad)}
+  .accent{color:var(--accent)}
+  .hr{height:1px;background:#24252a;margin:12px 0}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px 6px;border-bottom:1px solid #232428;text-align:right}
+  th:first-child, td:first-child{text-align:left}
+  .warn{background:#251616;border:1px solid #402424;color:#ffb4b4;padding:8px 10px;border-radius:10px;margin-top:10px}
+  .ok{background:#0f1a12;border:1px solid #1f3326;color:#b5f5cb;padding:8px 10px;border-radius:10px;margin-top:10px}
+  .foot{color:#8e9096;font-size:12px;margin-top:10px}
+  .pass{color:#b5f5cb}
+  .fail{color:#ffb4b4}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>0DTE Credit-Spread Kelly & +EV Calculator</h1>
+    <div class="grid">
+      <div class="card">
+        <div class="two">
+          <div>
+            <div class="row"><label>Win rate p (%)</label><input id="p" type="number" step="0.01" value="85"></div>
+            <div class="row"><label>Profit target t (% of credit)</label><input id="t" type="number" step="0.01" value="50"></div>
+            <div class="row"><label>Stop m (× credit)</label><input id="m" type="number" step="0.1" value="2.0"></div>
+            <div class="row"><label>Credit C (points)</label><input id="C" type="number" step="0.01" value="0.80"></div>
+            <div class="row"><label>Spread width W (points)</label><input id="W" type="number" step="1" value="50"></div>
+          </div>
+          <div>
+            <div class="row"><label>Multiplier (SPX=100)</label><input id="mult" type="number" step="1" value="100"></div>
+            <div class="row"><label>Bankroll ($)</label><input id="bank" type="number" step="1000" value="1000000"></div>
+            <div class="row"><label>Buying Power ($)</label><input id="bp" type="number" step="1000" value="500000"></div>
+            <div class="row"><label>Margin mode</label>
+              <select id="marginMode">
+                <option value="regt">Reg‑T (max loss)</option>
+                <option value="pm">Custom PM</option>
+              </select>
+            </div>
+            <div class="row"><label>PM margin/Put spread ($)</label><input id="pm_put" type="number" step="10" value="2500"></div>
+            <div class="row"><label>PM margin/Call spread ($)</label><input id="pm_call" type="number" step="10" value="2500"></div>
+            <div class="row"><label>PM margin/IC unit ($)</label><input id="pm_ic" type="number" step="10" value="2500"></div>
+            <div class="row"><label>Kelly fraction cap</label><input id="kcap" type="number" step="0.05" value="0.25"></div>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div class="muted">Notes: C is credit in index points (e.g., 0.80). t is % of credit (50 = take half). m is stop × credit (2.0 = 2× credit). If W and C imply a max loss smaller than your stop, m is capped at (W − C)/C. “Custom PM” lets you plug your broker’s live portfolio‑margin haircut per unit; Reg‑T uses max loss.</div>
+      </div>
+
+      <div class="card">
+        <div id="capMsg"></div>
+        <div class="out" id="metrics"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="out" id="sizes"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="out" id="table"></div>
+      <div class="foot">Formulas: +EV threshold p* = m/(m+t). Kelly f* = p − (m/t)(1−p). EV (credits) = p·t − (1−p)·m. Dollar EV = EV·C·multiplier. Risk/Spread @ stop = min(m, (W−C)/C)·C·multiplier. Max expiry loss = (W − C)·multiplier.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin:16px auto; max-width:1200px">
+    <h2 style="margin:0 0 8px;font-size:18px">Simulator & Optimizer</h2>
+    <div class="two">
+      <div>
+        <div class="row"><label>Structure</label>
+          <select id="structure">
+            <option value="put">Put credit spread</option>
+            <option value="call">Call credit spread</option>
+            <option value="ic">Iron condor</option>
+          </select>
+        </div>
+        <div class="row"><label>p_put (%)</label><input id="p_put" type="number" step="0.01" value="85"></div>
+        <div class="row"><label>p_call (%)</label><input id="p_call" type="number" step="0.01" value="85"></div>
+        <div class="row"><label>ρ path multiplier (A∩B)</label><input id="rho" type="number" step="0.1" value="1.5"></div>
+        <div class="row"><label>C_put (pts)</label><input id="C_put" type="number" step="0.01" value="0.80"></div>
+        <div class="row"><label>C_call (pts)</label><input id="C_call" type="number" step="0.01" value="0.80"></div>
+        <div class="row"><label>W_put (pts)</label><input id="W_put" type="number" step="1" value="50"></div>
+        <div class="row"><label>W_call (pts)</label><input id="W_call" type="number" step="1" value="50"></div>
+      </div>
+      <div>
+        <div class="row"><label>Max cycles per day (wins recycle)</label><input id="K" type="number" step="1" value="3"></div>
+        <div class="row"><label>Reuse on loss?</label>
+          <select id="reuseLoss"><option value="no">No (stop day)</option><option value="yes">Yes (always re-enter)</option></select>
+        </div>
+        <div class="row"><label>t grid (% of credit)</label><input id="tgrid" type="text" value="25,30,40,50,60"></div>
+        <div class="row"><label>m grid (× credit)</label><input id="mgrid" type="text" value="1.2,1.5,2.0,2.5,3.0"></div>
+        <div class="row"><label></label><button id="run">Run Simulation</button></div>
+      </div>
+    </div>
+    <div class="hr"></div>
+    <div class="out" id="simSummary"></div>
+    <div class="out" id="simTable"></div>
+  </div>
+
+  <div class="card" style="margin:16px auto; max-width:1200px">
+    <h2 style="margin:0 0 8px;font-size:18px">Diagnostics</h2>
+    <div id="tests"></div>
+  </div>
+
+<script>
+(function(){
+  function fmt(x, d=2){
+    if (!isFinite(x)) return "—";
+    return Number(x).toLocaleString(undefined,{maximumFractionDigits:d, minimumFractionDigits:d});
+  }
+
+  // Core helpers
+  function capM(mIn, C, W){
+    if (!isFinite(W) || !isFinite(C) || W<=0 || C<=0 || (W-C)<=0) return mIn;
+    const mMax = (W - C)/C; return Math.min(mIn, mMax);
+  }
+  function probIC(pPut, pCall, rho){
+    const qP = 1 - pPut, qC = 1 - pCall;
+    const both = Math.min(1, Math.max(0, rho) * qP * qC); // path-inflated overlap
+    const unionFail = Math.min(1, qP + qC - both);
+    return 1 - unionFail;
+  }
+  function expectedDayEV(p, winAmt, lossAmt, K, reuseOnLoss){
+    const q = 1 - p;
+    if (reuseOnLoss){
+      return K*(p*winAmt - q*lossAmt);
+    }
+    let ev = 0;
+    for (let j=0;j<K;j++){
+      const prob = Math.pow(p,j) * (j<K-1 ? (1-p) : p); // last term is K wins no loss
+      if (j < K-1){ ev += prob * (j*winAmt - lossAmt); }
+      else { ev += prob * (K*winAmt); }
+    }
+    return ev;
+  }
+
+  // Calculator (single-side analytics + BP-aware size)
+  function calc(){
+    const pPct = parseFloat(document.getElementById('p').value||0);
+    const tPct = parseFloat(document.getElementById('t').value||0);
+    const mIn  = parseFloat(document.getElementById('m').value||0);
+    const C    = parseFloat(document.getElementById('C').value||0);
+    const W    = parseFloat(document.getElementById('W').value||0);
+    const mult = parseFloat(document.getElementById('mult').value||100);
+    const bank = parseFloat(document.getElementById('bank').value||0);
+    const kcap = parseFloat(document.getElementById('kcap').value||1);
+    const mode = document.getElementById('marginMode').value;
+    const pm_ic = parseFloat(document.getElementById('pm_ic').value||0);
+    const bpStart = parseFloat(document.getElementById('bp').value||0);
+
+    const p = pPct/100.0;
+    const t = tPct/100.0;
+
+    let mCap = mIn, capHit=false;
+    if (isFinite(W) && isFinite(C) && W>0 && C>0 && (W - C) > 0){
+      const mMax = (W - C)/C; if (mIn > mMax){ mCap = mMax; capHit = true; }
+    }
+
+    const pThresh = (mCap)/(mCap + t);
+    const EVcredits = p*t - (1 - p)*mCap;
+    const EVdollars = EVcredits * C * mult;
+
+    const kelly = t>0 ? (p - (mCap/t)*(1 - p)) : 0;
+    const kAdj = Math.max(0, Math.min(kelly, 1));
+
+    const riskPerSpreadStop = mCap * C * mult;
+    const maxLossExpiry = (W>0 && C>0) ? (W - C) * mult : NaN;
+
+    // BP sizing: use PM field for generic unit, else Reg-T (max loss)
+    const marginPerUnit = (mode === 'pm') ? (pm_ic || maxLossExpiry) : maxLossExpiry;
+
+    function sizeForFraction(frac){
+      if (!isFinite(riskPerSpreadStop) || riskPerSpreadStop <= 0) return 0;
+      return Math.floor((bank * frac) / riskPerSpreadStop);
+    }
+    const nKelly = sizeForFraction(kAdj);
+    const nBP = marginPerUnit>0 ? Math.floor(bpStart / marginPerUnit) : 0;
+    const nFull = Math.min(nKelly, nBP);
+    const nHalf = sizeForFraction(Math.min(kAdj, kcap) * 0.5);
+    const nQtr  = sizeForFraction(Math.min(kAdj, kcap) * 0.25);
+
+    // Messages
+    const capMsg = document.getElementById('capMsg');
+    capMsg.innerHTML = capHit
+      ? `<div class="warn">Stop multiple capped by expiry max loss. Using m = <b>${fmt(mCap,3)}×</b> instead of ${fmt(mIn,3)}×. (Max expiry loss ${(isFinite(maxLossExpiry)?'$'+fmt(maxLossExpiry,0):'n/a')})</div>`
+      : `<div class="ok">Using stop m = <b>${fmt(mCap,3)}×</b>. Risk per spread at stop ≈ <b>$${fmt(riskPerSpreadStop,0)}</b>.</div>`;
+
+    // Metrics block
+    const metrics = document.getElementById('metrics');
+    const plusEV = (p > pThresh);
+    metrics.innerHTML = `
+      <div class="row"><label>+EV threshold p*</label><div class="kpill ${plusEV?'good':'bad'}">${fmt(100*pThresh,2)}%</div></div>
+      <div class="row"><label>Your p</label><div class="kpill ${plusEV?'good':'bad'}">${fmt(100*p,2)}%</div></div>
+      <div class="row"><label>EV (credits)</label><div class="kpill ${EVcredits>=0?'good':'bad'}">${fmt(EVcredits,4)}</div></div>
+      <div class="row"><label>EV ($/spread)</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars,2)}</div></div>
+      <div class="row"><label>Kelly f*</label><div class="kpill ${kAdj>0?'good':'bad'}">${fmt(kelly,3)}</div></div>
+      <div class="row"><label>Kelly (capped)</label><div class="kpill">${fmt(Math.min(kAdj, kcap),3)}</div></div>
+      <div class="row"><label>Max loss @ expiry</label><div class="kpill">${isFinite(maxLossExpiry)?('$'+fmt(maxLossExpiry,0)):'n/a'}</div></div>
+    `;
+
+    // Size suggestions
+    const sizes = document.getElementById('sizes');
+    const capKelly = Math.min(kAdj, kcap);
+    const nCap = sizeForFraction(capKelly);
+    sizes.innerHTML = `
+      <div class="two">
+        <div>
+          <div class="row"><label>Full Kelly size (BP‑aware)</label><div class="kpill accent">${nFull} spreads</div></div>
+          <div class="row"><label>BP‑only limit</label><div class="kpill">${nBP} spreads</div></div>
+          <div class="row"><label>${fmt(capKelly*100,1)}% Kelly (cap)</label><div class="kpill accent">${nCap} spreads</div></div>
+          <div class="row"><label>Half of cap</label><div class="kpill">${nHalf} spreads</div></div>
+          <div class="row"><label>Quarter of cap</label><div class="kpill">${nQtr} spreads</div></div>
+        </div>
+        <div>
+          <div class="row"><label>Risk/Spread @ stop</label><div class="kpill">$${fmt(riskPerSpreadStop,0)}</div></div>
+          <div class="row"><label>Dollar EV @ cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nCap,0)}</div></div>
+          <div class="row"><label>Dollar EV @ 1/2 cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nHalf,0)}</div></div>
+          <div class="row"><label>Dollar EV @ 1/4 cap</label><div class="kpill ${EVdollars>=0?'good':'bad'}">$${fmt(EVdollars * nQtr,0)}</div></div>
+        </div>
+      </div>
+    `;
+
+    // Scenario table across p
+    const tblDiv = document.getElementById('table');
+    let rows = '';
+    for (let pView = Math.max(0.5, p - 0.1); pView <= Math.min(0.98, p + 0.1) + 1e-9; pView += 0.02){
+      const EVc = pView*t - (1 - pView)*mCap;
+      const EV$ = EVc * C * mult;
+      const f   = t>0 ? (pView - (mCap/t)*(1 - pView)) : 0;
+      rows += `<tr><td>${fmt(100*pView,2)}%</td><td class="${EVc>=0?'good':'bad'}">${fmt(EVc,4)}</td><td class="${EV$>=0?'good':'bad'}">$${fmt(EV$,2)}</td><td>${fmt(f,3)}</td><td>${fmt(mCap/(mCap+t)*100,2)}%</td></tr>`;
+    }
+    tblDiv.innerHTML = `
+      <table>
+        <thead><tr><th>p (%)</th><th>EV (credits)</th><th>EV ($/spread)</th><th>Kelly f*</th><th>+EV threshold</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // Simulator & optimizer (BP‑aware)
+  function runSim(){
+    const mult = parseFloat(document.getElementById('mult').value||100);
+    const bank = parseFloat(document.getElementById('bank').value||0);
+    const kcap = parseFloat(document.getElementById('kcap').value||1);
+    const mode = document.getElementById('marginMode').value;
+    const pm_put = parseFloat(document.getElementById('pm_put').value||0);
+    const pm_call = parseFloat(document.getElementById('pm_call').value||0);
+    const pm_ic = parseFloat(document.getElementById('pm_ic').value||0);
+    const bpStart = parseFloat(document.getElementById('bp').value||0);
+
+    const structure = document.getElementById('structure').value;
+    const p_put = (parseFloat(document.getElementById('p_put').value||0))/100;
+    const p_call = (parseFloat(document.getElementById('p_call').value||0))/100;
+    const rho = parseFloat(document.getElementById('rho').value||1.5);
+    const C_put = parseFloat(document.getElementById('C_put').value||0);
+    const C_call = parseFloat(document.getElementById('C_call').value||0);
+    const W_put = parseFloat(document.getElementById('W_put').value||0);
+    const W_call = parseFloat(document.getElementById('W_call').value||0);
+    const K = Math.max(1, Math.round(parseFloat(document.getElementById('K').value||1)));
+    const reuseLoss = document.getElementById('reuseLoss').value === 'yes';
+
+    const tList = (document.getElementById('tgrid').value||'').split(',').map(s=>parseFloat(s.trim())).filter(x=>isFinite(x) && x>0).map(x=>x/100);
+    const mList = (document.getElementById('mgrid').value||'').split(',').map(s=>parseFloat(s.trim())).filter(x=>isFinite(x) && x>0);
+
+    let p, Ctot, Closs, W_eff, marginPerUnit;
+    if (structure === 'put'){
+      p = p_put; Ctot = C_put; Closs = C_put; W_eff = W_put;
+      const regt = (W_put - C_put) * mult;
+      marginPerUnit = (mode==='pm' ? (pm_put||regt) : regt);
+    } else if (structure === 'call'){
+      p = p_call; Ctot = C_call; Closs = C_call; W_eff = W_call;
+      const regt = (W_call - C_call) * mult;
+      marginPerUnit = (mode==='pm' ? (pm_call||regt) : regt);
+    } else { // IC
+      p = probIC(p_put, p_call, rho);
+      Ctot = C_put + C_call;
+      Closs = 0.5 * Ctot; // assume one side eats the stop
+      W_eff = Math.min(W_put, W_call);
+      const regtIC = Math.min(W_put - C_put, W_call - C_call) * mult; // tighter side
+      marginPerUnit = (mode==='pm' ? (pm_ic||regtIC) : regtIC);
+    }
+
+    let best = {ev:-Infinity, t:null, m:null, p, perTradeEV:null, perDayEV:null, nCap:0};
+    let rows = '';
+
+    for (const t of tList){
+      for (const mIn of mList){
+        const mP = capM(mIn, Closs, W_eff);
+        const winAmt = t * Ctot * mult;
+        const lossAmt = mP * Closs * mult;
+        const perTradeEV = p*winAmt - (1-p)*lossAmt;
+        const perDayEV = expectedDayEV(p, winAmt, lossAmt, K, reuseLoss);
+
+        const riskPer = lossAmt; // per-unit risk at stop
+        const kelly = (t>0) ? (p - (mP/t)*(1-p)) : 0;
+        const kAdj = Math.max(0, Math.min(kelly, kcap));
+        const nKelly = riskPer>0 ? Math.floor((bank * kAdj)/riskPer) : 0;
+        const nBP = marginPerUnit>0 ? Math.floor(bpStart / marginPerUnit) : 0;
+        const nCap = Math.min(nKelly, nBP);
+
+        rows += `<tr><td>${(structure).toUpperCase()}</td><td>${(t*100).toFixed(0)}%</td><td>${mIn.toFixed(2)}×</td><td>${(p*100).toFixed(2)}%</td><td>$${fmt(winAmt,0)}</td><td>$${fmt(lossAmt,0)}</td><td class="${perTradeEV>=0?'good':'bad'}">$${fmt(perTradeEV,0)}</td><td class="${perDayEV>=0?'good':'bad'}">$${fmt(perDayEV,0)}</td><td>${fmt(kAdj,3)}</td><td>${nCap}</td></tr>`;
+
+        if (perDayEV > best.ev){ best = {ev:perDayEV, t, m:mIn, p, perTradeEV, perDayEV, nCap}; }
+      }
+    }
+
+    document.getElementById('simSummary').innerHTML = `
+      <div class="two">
+        <div>
+          <div class="row"><label>Derived p (win probability)</label><div class="kpill">${fmt(best.p*100,2)}%</div></div>
+          <div class="row"><label>Best t / m</label><div class="kpill accent">${(best.t*100).toFixed(0)}% / ${best.m.toFixed(2)}×</div></div>
+        </div>
+        <div>
+          <div class="row"><label>EV/trade @ best</label><div class="kpill ${best.perTradeEV>=0?'good':'bad'}">$${fmt(best.perTradeEV,0)}</div></div>
+          <div class="row"><label>EV/day @ best</label><div class="kpill ${best.perDayEV>=0?'good':'bad'}">$${fmt(best.perDayEV,0)}</div></div>
+          <div class="row"><label>Size @ Kelly∧BP cap</label><div class="kpill">${best.nCap} units</div></div>
+        </div>
+      </div>`;
+
+    document.getElementById('simTable').innerHTML = `
+      <table>
+        <thead><tr><th>Struct</th><th>t</th><th>m</th><th>p</th><th>Win $</th><th>Loss $</th><th>EV/trade</th><th>EV/day</th><th>Kelly</th><th>Size@cap</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // Diagnostics tests
+  function runTests(){
+    const results = [];
+    function near(a,b,eps=1e-9){ return Math.abs(a-b) < eps; }
+
+    // Test 1: EV credits example A (p=.85, t=.5, m=2) => 0.125
+    (function(){
+      const p=.85,t=.5,m=2; const EV=p*t-(1-p)*m; results.push({name:'EV credits 0.85/0.5/2', pass:near(EV,0.125)});})();
+
+    // Test 2: Kelly example A => 0.25
+    (function(){
+      const p=.85,t=.5,m=2; const k = p - (m/t)*(1-p); results.push({name:'Kelly 0.85/0.5/2', pass:near(k,0.25)});})();
+
+    // Test 3: +EV threshold m/(m+t) => 0.8
+    (function(){
+      const t=.5,m=2; const thr=m/(m+t); results.push({name:'+EV threshold 2/(2+0.5)', pass:near(thr,0.8)});})();
+
+    // Test 4: capM with W=50, C=1, mIn=100 => 49
+    (function(){
+      const out = capM(100,1,50); results.push({name:'capM caps to (W-C)/C', pass:near(out,49)});})();
+
+    // Test 5: probIC with pP=pC=0.9, rho=1 => 0.81
+    (function(){
+      const out = probIC(0.9,0.9,1); results.push({name:'probIC 0.9/0.9 rho=1', pass:near(out,0.81)});})();
+
+    const el = document.getElementById('tests');
+    el.innerHTML = '<ul>' + results.map(r=>`<li class="${r.pass?'pass':'fail'}">${r.pass?'PASS':'FAIL'} – ${r.name}</li>`).join('') + '</ul>';
+  }
+
+  // Wire events
+  ['p','t','m','C','W','mult','bank','kcap','marginMode','pm_put','pm_call','pm_ic','bp'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', calc);
+  });
+  ['run','structure','p_put','p_call','rho','C_put','C_call','W_put','W_call','K','reuseLoss','tgrid','mgrid'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (id==='run') el.addEventListener('click', runSim);
+    el.addEventListener('change', runSim);
+    if (id!=='run') el.addEventListener('input', runSim);
+  });
+
+  // Initial draws
+  calc();
+  runSim();
+  runTests();
+})();
+</script>
+</body>
+</html>
